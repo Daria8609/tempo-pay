@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tempo USDC Pay</title>
+  <title>Tempo Pay (Viem Style)</title>
 </head>
 
 <body style="font-family: Arial; padding: 40px;">
 
-  <h1>Tempo USDC Pay 💸</h1>
+  <h1>Tempo Pay 💸</h1>
 
-  <p id="info">Loading payment...</p>
+  <p id="info">Loading...</p>
 
-  <button onclick="pay()">Pay in USDC</button>
+  <button onclick="pay()">Pay USDC</button>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
   <script>
     // =========================
-    // URL PARAMS
+    // PARAMS
     // =========================
     const params = new URLSearchParams(window.location.search);
 
@@ -26,49 +26,39 @@
     const info = document.getElementById("info");
 
     if (!to || !amount) {
-      info.innerText = "❌ Missing 'to' or 'amount' in URL";
+      info.innerText = "❌ Missing to or amount";
     } else {
       info.innerText = `Send ${amount} USDC to ${to}`;
     }
 
     // =========================
-    // TEMPO NETWORK
+    // TEMPO
     // =========================
     const TEMPO_CHAIN_ID = "0x1079";
 
-    // =========================
-    // YOUR USDC CONTRACT (Tempo)
-    // =========================
+    // USDC contract (твоя)
     const USDC_ADDRESS = "0x20c000000000000000000000b9537d11c60e8b50";
 
-    // minimal ERC20 ABI
-    const ERC20_ABI = [
-      "function transfer(address to, uint amount) returns (bool)",
-      "function decimals() view returns (uint8)"
-    ];
+    // минимальный ABI encode (transfer)
+    const ERC20_IFACE = new ethers.Interface([
+      "function transfer(address to, uint amount)"
+    ]);
 
-    // =========================
-    // NETWORK CHECK
-    // =========================
-    async function ensureTempoNetwork() {
+    async function ensureTempo() {
       const chainId = await window.ethereum.request({
         method: "eth_chainId"
       });
 
       if (chainId !== TEMPO_CHAIN_ID) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: TEMPO_CHAIN_ID }]
-          });
-        } catch (err) {
-          throw new Error("WRONG_NETWORK");
-        }
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: TEMPO_CHAIN_ID }]
+        });
       }
     }
 
     // =========================
-    // PAYMENT
+    // PAY (TEMPO STYLE)
     // =========================
     async function pay() {
       try {
@@ -79,46 +69,44 @@
         }
 
         if (!to || !amount) {
-          alert("Invalid payment link");
+          alert("Invalid link");
           return;
         }
 
-        // 1. ensure Tempo network
-        await ensureTempoNetwork();
+        await ensureTempo();
 
-        // 2. connect wallet
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
 
-        // 3. USDC contract
-        const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
-
-        // 4. decimals (USDC usually = 6)
-        const decimals = await usdc.decimals();
+        // USDC decimals (обычно 6)
+        const decimals = 6;
 
         const value = ethers.parseUnits(amount, decimals);
 
-        // 5. transfer USDC
-        const tx = await usdc.transfer(to, value);
+        // encode call data (ВАЖНО для Tempo)
+        const data = ERC20_IFACE.encodeFunctionData("transfer", [
+          to,
+          value
+        ]);
+
+        // ⚡ ВАЖНО: НЕТ value, только data
+        const tx = await signer.sendTransaction({
+          to: USDC_ADDRESS,
+          data: data,
+          gasLimit: 200000
+        });
 
         info.innerText = "⏳ Sending USDC...";
 
         await tx.wait();
 
-        info.innerText = "✅ Payment successful!";
-        alert("USDC sent successfully!");
+        info.innerText = "✅ Paid successfully!";
+        alert("USDC sent!");
 
       } catch (err) {
-
         console.error(err);
-
-        if (err.message === "WRONG_NETWORK") {
-          alert("❌ Switch to Tempo network in MetaMask");
-          return;
-        }
-
-        alert("❌ Transaction failed (check console)");
+        alert("❌ Failed (check console)");
       }
     }
   </script>
