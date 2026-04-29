@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tempo Pay</title>
+</head>
+<body style="font-family: Arial; padding: 40px;">
+
+  <h1>Tempo Pay 💸</h1>
+
+  <p id="info"></p>
+
+  <button onclick="pay()">Pay</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const to = params.get("to");
+    const amount = params.get("amount");
+
+    document.getElementById("info").innerText =
+      `Send ${amount} to ${to}`;
+
+    async function pay() {
+      if (!window.ethereum) {
+        alert("Install MetaMask");
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      const tx = await signer.sendTransaction({
+        to: to,
+        value: ethers.parseEther(amount)
+      });
+
+      await tx.wait();
+
+      alert("Payment successful!");
+    }
+  </script>
+
+</body>
+</html>
