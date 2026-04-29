@@ -15,39 +15,85 @@
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
   <script>
+    // =========================
+    // ПАРАМЕТРЫ ИЗ ССЫЛКИ
+    // =========================
     const params = new URLSearchParams(window.location.search);
-
     const to = (params.get("to") || "").trim();
     const amount = (params.get("amount") || "").trim();
 
     const info = document.getElementById("info");
 
-    // 🔴 проверка ссылки
     if (!to || !amount) {
-      info.innerText = "❌ Invalid link. Missing 'to' or 'amount'.";
+      info.innerText = "❌ Invalid link: missing to or amount";
     } else {
-      info.innerText = `Send ${amount} to ${to}`;
+      info.innerText = `Send ${amount} T to ${to}`;
     }
 
+    // =========================
+    // TEMPO NETWORK (ТВОИ ДАННЫЕ)
+    // =========================
+    const TEMPO_CHAIN_ID = "0x1079";
+
+    const TEMPO_NETWORK = {
+      chainId: TEMPO_CHAIN_ID,
+      chainName: "Tempo",
+      nativeCurrency: {
+        name: "Tempo",
+        symbol: "T",
+        decimals: 18
+      },
+      rpcUrls: ["https://rpc.mainnet.tempo.xyz"],
+      blockExplorerUrls: ["https://explore.tempo.xyz"]
+    };
+
+    // =========================
+    // ПЕРЕКЛЮЧЕНИЕ СЕТИ
+    // =========================
+    async function switchToTempo() {
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: TEMPO_CHAIN_ID }]
+        });
+      } catch (error) {
+
+        // если сети нет в MetaMask — добавляем
+        if (error.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [TEMPO_NETWORK]
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // =========================
+    // ОПЛАТА
+    // =========================
     async function pay() {
       try {
 
         if (!window.ethereum) {
-          alert("❌ Install MetaMask");
+          alert("Install MetaMask");
           return;
         }
 
         if (!to || !amount) {
-          alert("❌ Invalid payment link");
+          alert("Invalid payment link");
           return;
         }
 
-        // подключение кошелька
+        // 1. переключаемся на Tempo
+        await switchToTempo();
+
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
 
-        // отправка транзакции (нативный токен сети Tempo)
+        // 2. отправка транзакции (нативный токен Tempo)
         const tx = await signer.sendTransaction({
           to: to,
           value: ethers.parseEther(amount)
@@ -61,8 +107,8 @@
         alert("Payment successful!");
 
       } catch (err) {
-        console.error("Payment error:", err);
-        alert("❌ Payment failed. Check console (F12)");
+        console.error(err);
+        alert("❌ Error. Check console (F12)");
       }
     }
   </script>
