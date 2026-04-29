@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tempo Pay</title>
+  <title>Tempo USDC Pay</title>
 </head>
 
 <body style="font-family: Arial; padding: 40px;">
 
-  <h1>Tempo Pay 💸</h1>
+  <h1>Tempo USDC Pay 💸</h1>
 
-  <p id="info">Loading...</p>
+  <p id="info">Loading payment...</p>
 
-  <button onclick="pay()">Pay</button>
+  <button onclick="pay()">Pay in USDC</button>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
   <script>
     // =========================
-    // GET DATA FROM URL
+    // URL PARAMS
     // =========================
     const params = new URLSearchParams(window.location.search);
 
@@ -28,14 +28,28 @@
     if (!to || !amount) {
       info.innerText = "❌ Missing 'to' or 'amount' in URL";
     } else {
-      info.innerText = `Send ${amount} T to ${to}`;
+      info.innerText = `Send ${amount} USDC to ${to}`;
     }
 
     // =========================
-    // TEMPO CHAIN
+    // TEMPO NETWORK
     // =========================
     const TEMPO_CHAIN_ID = "0x1079";
 
+    // =========================
+    // YOUR USDC CONTRACT (Tempo)
+    // =========================
+    const USDC_ADDRESS = "0x20c000000000000000000000b9537d11c60e8b50";
+
+    // minimal ERC20 ABI
+    const ERC20_ABI = [
+      "function transfer(address to, uint amount) returns (bool)",
+      "function decimals() view returns (uint8)"
+    ];
+
+    // =========================
+    // NETWORK CHECK
+    // =========================
     async function ensureTempoNetwork() {
       const chainId = await window.ethereum.request({
         method: "eth_chainId"
@@ -54,7 +68,7 @@
     }
 
     // =========================
-    // PAY FUNCTION
+    // PAYMENT
     // =========================
     async function pay() {
       try {
@@ -65,31 +79,35 @@
         }
 
         if (!to || !amount) {
-          alert("Invalid link");
+          alert("Invalid payment link");
           return;
         }
 
-        // 1. проверяем сеть
+        // 1. ensure Tempo network
         await ensureTempoNetwork();
 
-        // 2. подключаем кошелёк
+        // 2. connect wallet
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
 
-        // 3. отправка транзакции (ВАЖНО: фикс gasLimit)
-        const tx = await signer.sendTransaction({
-          to: to,
-          value: ethers.parseEther(amount),
-          gasLimit: 21000
-        });
+        // 3. USDC contract
+        const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
 
-        info.innerText = "⏳ Transaction pending...";
+        // 4. decimals (USDC usually = 6)
+        const decimals = await usdc.decimals();
+
+        const value = ethers.parseUnits(amount, decimals);
+
+        // 5. transfer USDC
+        const tx = await usdc.transfer(to, value);
+
+        info.innerText = "⏳ Sending USDC...";
 
         await tx.wait();
 
         info.innerText = "✅ Payment successful!";
-        alert("Payment successful!");
+        alert("USDC sent successfully!");
 
       } catch (err) {
 
