@@ -16,44 +16,40 @@
 
   <script>
     // =========================
-    // GET PARAMETERS
+    // GET DATA FROM URL
     // =========================
     const params = new URLSearchParams(window.location.search);
+
     const to = (params.get("to") || "").trim();
     const amount = (params.get("amount") || "").trim();
 
     const info = document.getElementById("info");
 
     if (!to || !amount) {
-      info.innerText = "❌ Invalid link (missing to or amount)";
+      info.innerText = "❌ Missing 'to' or 'amount' in URL";
     } else {
       info.innerText = `Send ${amount} T to ${to}`;
     }
 
     // =========================
-    // TEMPO NETWORK CONFIG
+    // TEMPO CHAIN
     // =========================
-    const TEMPO_CHAIN_ID = "0x1079"; // 4217 in hex
+    const TEMPO_CHAIN_ID = "0x1079";
 
-    // =========================
-    // CHECK NETWORK
-    // =========================
     async function ensureTempoNetwork() {
-      const currentChainId = await window.ethereum.request({
+      const chainId = await window.ethereum.request({
         method: "eth_chainId"
       });
 
-      if (currentChainId === TEMPO_CHAIN_ID) {
-        return true;
-      }
-
-      try {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: TEMPO_CHAIN_ID }]
-        });
-      } catch (err) {
-        throw new Error("NOT_TEMPO_NETWORK");
+      if (chainId !== TEMPO_CHAIN_ID) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: TEMPO_CHAIN_ID }]
+          });
+        } catch (err) {
+          throw new Error("WRONG_NETWORK");
+        }
       }
     }
 
@@ -69,20 +65,23 @@
         }
 
         if (!to || !amount) {
-          alert("Invalid payment link");
+          alert("Invalid link");
           return;
         }
 
-        // 🔥 строго проверяем сеть
+        // 1. проверяем сеть
         await ensureTempoNetwork();
 
+        // 2. подключаем кошелёк
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
 
+        // 3. отправка транзакции (ВАЖНО: фикс gasLimit)
         const tx = await signer.sendTransaction({
           to: to,
-          value: ethers.parseEther(amount)
+          value: ethers.parseEther(amount),
+          gasLimit: 21000
         });
 
         info.innerText = "⏳ Transaction pending...";
@@ -94,13 +93,14 @@
 
       } catch (err) {
 
-        if (err.message === "NOT_TEMPO_NETWORK") {
-          alert("❌ Please switch to Tempo network in MetaMask");
+        console.error(err);
+
+        if (err.message === "WRONG_NETWORK") {
+          alert("❌ Switch to Tempo network in MetaMask");
           return;
         }
 
-        console.error(err);
-        alert("❌ Transaction failed. Check console (F12)");
+        alert("❌ Transaction failed (check console)");
       }
     }
   </script>
