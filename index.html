@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tempo Pay USDC</title>
+  <title>Tempo Pay</title>
 </head>
 
 <body style="font-family: Arial; padding: 40px;">
@@ -10,7 +10,7 @@
 
   <p id="info"></p>
 
-  <button onclick="pay()">Pay USDC</button>
+  <button onclick="pay()">Pay</button>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
@@ -20,32 +20,31 @@
     const amount = params.get("amount");
 
     document.getElementById("info").innerText =
-      `Send ${amount} USDC to ${to}`;
-
-    const USDC_CONTRACT = "0x20c000000000000000000000b9537d11c60e8b50";
-
-    const ABI = [
-      "function transfer(address to, uint amount) returns (bool)"
-    ];
+      `Send ${amount} to ${to}`;
 
     async function pay() {
-      if (!window.ethereum) {
-        alert("Install MetaMask");
-        return;
+      try {
+        if (!window.ethereum) {
+          alert("Install MetaMask");
+          return;
+        }
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+
+        // ПРОСТОЙ ПЕРЕВОД (без USDC, без контрактов)
+        const tx = await signer.sendTransaction({
+          to: to,
+          value: ethers.parseEther(amount)
+        });
+
+        await tx.wait();
+
+        alert("✅ Payment successful!");
+      } catch (err) {
+        console.error(err);
+        alert("❌ Payment failed. Check network / address / MetaMask");
       }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-
-      const contract = new ethers.Contract(USDC_CONTRACT, ABI, signer);
-
-      const value = ethers.parseUnits(amount, 6);
-
-      const tx = await contract.transfer(to, value);
-
-      await tx.wait();
-
-      alert("Payment successful!");
     }
   </script>
 
