@@ -8,7 +8,7 @@
 
   <h1>Tempo Pay 💸</h1>
 
-  <p id="info"></p>
+  <p id="info">Loading payment link...</p>
 
   <button onclick="pay()">Pay</button>
 
@@ -16,34 +16,53 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    const to = params.get("to");
-    const amount = params.get("amount");
 
-    document.getElementById("info").innerText =
-      `Send ${amount} to ${to}`;
+    const to = (params.get("to") || "").trim();
+    const amount = (params.get("amount") || "").trim();
+
+    const info = document.getElementById("info");
+
+    // 🔴 проверка ссылки
+    if (!to || !amount) {
+      info.innerText = "❌ Invalid link. Missing 'to' or 'amount'.";
+    } else {
+      info.innerText = `Send ${amount} to ${to}`;
+    }
 
     async function pay() {
       try {
+
         if (!window.ethereum) {
-          alert("Install MetaMask");
+          alert("❌ Install MetaMask");
           return;
         }
 
+        if (!to || !amount) {
+          alert("❌ Invalid payment link");
+          return;
+        }
+
+        // подключение кошелька
         const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
 
-        // ПРОСТОЙ ПЕРЕВОД (без USDC, без контрактов)
+        // отправка транзакции (нативный токен сети Tempo)
         const tx = await signer.sendTransaction({
           to: to,
           value: ethers.parseEther(amount)
         });
 
+        info.innerText = "⏳ Transaction pending...";
+
         await tx.wait();
 
-        alert("✅ Payment successful!");
+        info.innerText = "✅ Payment successful!";
+        alert("Payment successful!");
+
       } catch (err) {
-        console.error(err);
-        alert("❌ Payment failed. Check network / address / MetaMask");
+        console.error("Payment error:", err);
+        alert("❌ Payment failed. Check console (F12)");
       }
     }
   </script>
