@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tempo Pay</title>
+  <title>Tempo Pay USDC</title>
 </head>
+
 <body style="font-family: Arial; padding: 40px;">
 
   <h1>Tempo Pay 💸</h1>
 
   <p id="info"></p>
 
-  <button onclick="pay()">Pay</button>
+  <button onclick="pay()">Pay USDC</button>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
 
@@ -19,7 +20,13 @@
     const amount = params.get("amount");
 
     document.getElementById("info").innerText =
-      `Send ${amount} to ${to}`;
+      `Send ${amount} USDC to ${to}`;
+
+    const USDC_CONTRACT = "0x20c000000000000000000000b9537d11c60e8b50";
+
+    const ABI = [
+      "function transfer(address to, uint amount) returns (bool)"
+    ];
 
     async function pay() {
       if (!window.ethereum) {
@@ -30,10 +37,11 @@
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      const tx = await signer.sendTransaction({
-        to: to,
-        value: ethers.parseEther(amount)
-      });
+      const contract = new ethers.Contract(USDC_CONTRACT, ABI, signer);
+
+      const value = ethers.parseUnits(amount, 6);
+
+      const tx = await contract.transfer(to, value);
 
       await tx.wait();
 
